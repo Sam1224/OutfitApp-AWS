@@ -1,0 +1,7 @@
+*.pyc
+*.pth
+*.out
+*.code-workspace
+.DS_Store
+
+_old
