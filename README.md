@@ -16,8 +16,9 @@ Flash を用いた仮想試着モデルの WebAPI。<br>
     - tqdm
     - Pillow : < 7.0.0
     - flask : 
+    - flask-cors : 
 - javascript
     - jquery-3.4.1
-    
+
 ## ■ 使用法
 

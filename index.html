@@ -5,9 +5,10 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <title>virtual-try-on Web API</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" type="text/css" media="screen" href="main.css" />
+    <link rel="stylesheet" type="text/css" media="screen" href="css/main.css" />
     <script src="js/jquery-3.4.1.js"></script>
     <script src="js/request.js"></script>
+    <script src="js/utils.js"></script>
 </head>
 <body>
     <h1>virtual-try-on Web API</h1>
@@ -24,5 +25,6 @@
 
     <p>仮想試着画像を表示</p>
     <button type="button" onclick="generateTryOnImage()">試着画像を生成</button>
+    <canvas id="tryon_image_canvas" width="192" height="256"></canvas>
 </body>
 </html>

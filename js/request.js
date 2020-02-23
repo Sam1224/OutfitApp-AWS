@@ -24,39 +24,24 @@ $(function(){
 	});
 });
 
-// canvas への画像表示を行う
-function drawToCanvas( img_src, canvas_id ) {
-    // Image オブジェクトの作成
-    var img = new Image();
-    img.src = img_src;
-    img.onload = function(){
-        // canvas に画像を表示
-        var canvas = document.getElementById(canvas_id);
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        var context = canvas.getContext('2d');
-        context.drawImage(img, 0, 0, canvas.width, canvas.height);
-    }
-}
-
 // 試着画像生成ボタンクリック時に呼び出される関数
 function generateTryOnImage() {
     console.log( "試着画像の合成開始" );
 
     // Canvas から画像データを取得
-    var pose_canvas = document.getElementById("selected_file_pose_image_canvas");
-    var pose_base64 = pose_canvas.toDataURL('image/png').replace(/^.*,/, '');
-    var cloth_canvas = document.getElementById("selected_file_cloth_image_canvas");
-    var cloth_base64 = cloth_canvas.toDataURL('image/png').replace(/^.*,/, '');
+    var pose_img_canvas = document.getElementById("selected_file_pose_image_canvas");
+    var pose_img_base64 = pose_img_canvas.toDataURL('image/png').replace(/^.*,/, '');
+    var cloth_img_canvas = document.getElementById("selected_file_cloth_image_canvas");
+    var cloth_img_base64 = cloth_img_canvas.toDataURL('image/png').replace(/^.*,/, '');
 
     // データを仮想試着サーバーに送信（jQuery での Ajax通信を開始）
     try {
         $.ajax({
             //url: 'http://0.0.0.0:5000/tryon',
             url: 'http://localhost:5000/tryon',
-            type: 'GET',
+            type: 'POST',
             dataType: "json",
-            data: JSON.stringify({ "pose_data": pose_base64, "cloth_data": cloth_base64 }),
+            data: JSON.stringify({ "pose_img_base64": pose_img_base64, "cloth_img_base64": cloth_img_base64 }),
             contentType: 'application/json',
             crossDomain: true,  // 仮想試着サーバーとリクエスト処理を異なるアプリケーションでデバッグするために必要
             timeout: 5000,
@@ -64,6 +49,9 @@ function generateTryOnImage() {
         .done(function(data) {
             // 通信成功時の処理を記述
             console.log( "試着画像の通信成功" );
+            console.log( data.tryon_img_base64 );
+            dataURL = `data:image/png;base64,${data.tryon_img_base64}`
+            drawToCanvas( dataURL, "tryon_image_canvas" )
         })
         .fail(function() {
             // 通信失敗時の処理を記述
