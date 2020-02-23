@@ -8,16 +8,15 @@ app = flask.Flask(__name__)
 app.config['JSON_AS_ASCII'] = False     # 日本語文字化け対策
 app.config["JSON_SORT_KEYS"] = False    # ソートをそのまま
 
-
 # Web 上の "http://host_ip:5000" ページにアクセス時の処理
-# GET リクエスト : url に直接データを送る
-# POST リクエスト : URLからは直接見れない形でデータが送る
 @app.route('/')
 def index():
-    return flask.render_template('index.html', title='irtual-try-on_webapi_flask') 
+    return flask.render_template('index.html', title='virtual-try-on_webapi_flask') 
 
-@app.route('/responce', methods=['GET', 'POST'])
+@app.route('/tryon', methods=['POST','GET'])
 def responce():
+    print( "リクエスト受け取り" )
+
     if( app.debug ):
         print( "flask.request.method : ", flask.request.method )
         print( "flask.request.headers : ", flask.request.headers )

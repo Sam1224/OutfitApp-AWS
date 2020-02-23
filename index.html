@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>virtual-try-on Web API</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" media="screen" href="main.css" />
+    <script src="js/jquery-3.4.1.js"></script>
+    <script src="js/request.js"></script>
+</head>
+<body>
+    <h1>virtual-try-on Web API</h1>
+    <p>人物画像を読み込む</p>
+    <input id="selected_file_pose_image" type="file" accept="image/*"></input>
+    <canvas id="selected_file_pose_image_canvas" width="192" height="256"></canvas>
+
+    <p>服画像を読み込む</p>
+    <input id="selected_file_cloth_image" type="file" accept="image/*"></input>
+    <canvas id="selected_file_cloth_image_canvas" width="192" height="256"></canvas>
+
+    <p>仮想試着モデルのチェックポイントを読み込む</p>
+    <input id="selected_file_model" type="file"></input>
+
+    <p>仮想試着画像を表示</p>
+    <button type="button" onclick="generateTryOnImage()">試着画像を生成</button>
+</body>
+</html>

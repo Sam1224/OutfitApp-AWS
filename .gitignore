@@ -2,6 +2,8 @@
 *.pth
 *.out
 *.code-workspace
+launch.json
 .DS_Store
 
-_old
+_old/*
+_debug/*
