@@ -44,18 +44,24 @@ function generateTryOnImage() {
             data: JSON.stringify({ "pose_img_base64": pose_img_base64, "cloth_img_base64": cloth_img_base64 }),
             contentType: 'application/json',
             crossDomain: true,  // 仮想試着サーバーとリクエスト処理を異なるアプリケーションでデバッグするために必要
-            timeout: 5000,
+            timeout: 60000,
         })
-        .done(function(data) {
+        .done(function(data, textStatus, jqXHR) {
             // 通信成功時の処理を記述
             console.log( "試着画像の通信成功" );
             console.log( data.tryon_img_base64 );
+            console.log( textStatus );
+            console.log( jqXHR );
+
             dataURL = `data:image/png;base64,${data.tryon_img_base64}`
             drawToCanvas( dataURL, "tryon_image_canvas" )
         })
-        .fail(function() {
+        .fail(function(jqXHR, textStatus, errorThrown) {
             // 通信失敗時の処理を記述
             console.log( "試着画像の通信失敗" );
+            console.log( textStatus );
+            console.log( jqXHR );
+            console.log( errorThrown );
         });
     } catch (e) {
         console.error(e)
