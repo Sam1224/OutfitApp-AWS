@@ -37,8 +37,8 @@ function generateTryOnImage() {
     // データを仮想試着サーバーに送信（jQuery での Ajax通信を開始）
     try {
         $.ajax({
-            //url: 'http://0.0.0.0:5000/tryon',
-            url: 'http://localhost:5000/tryon',
+            //url: 'http://0.0.0.0:5000/api_server',
+            url: 'http://localhost:5000/api_server',
             type: 'POST',
             dataType: "json",
             data: JSON.stringify({ "pose_img_base64": pose_img_base64, "cloth_img_base64": cloth_img_base64 }),

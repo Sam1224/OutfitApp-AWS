@@ -12,7 +12,8 @@ Flask を用いた仮想試着モデルの WebAPI。<br>
 
 ## ■ 動作環境（試着 API サーバー側）
 
-- Ubuntu : 16.04
+### ◎ conda 環境
+- Ubuntu :
 - Python : 3.6
 - Anaconda
 - PyTorch : 1.x 系
@@ -20,7 +21,16 @@ Flask を用いた仮想試着モデルの WebAPI。<br>
 - Pillow : < 7.0.0
 - flask : 
 - flask-cors :
+- requests : 
 - networkx : Graphonomy 動作用
+
+### ◎ docker 環境
+
 
 ## ■ 使用法
 
+### ◎ graphpnpmy の事前学習済みモデルのダウンロード
+
+```sh
+
+```

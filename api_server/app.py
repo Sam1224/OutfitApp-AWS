@@ -5,6 +5,7 @@ import argparse
 import json
 import numpy as np
 from PIL import Image
+import requests
 
 # flask
 import flask
@@ -28,6 +29,11 @@ app = flask.Flask(__name__)
 app.config['JSON_AS_ASCII'] = False     # 日本語文字化け対策
 app.config["JSON_SORT_KEYS"] = False    # ソートをそのまま
 
+#OPENPOSE_SERVER_URL = "http://openpose_ubuntu_gpu_container:5010/openpose"
+#OPENPOSE_SERVER_URL = "http://localhost:5010/openpose"
+OPENPOSE_SERVER_URL = "http://0.0.0.0:5010/openpose"
+GRAPHONOMY_SERVER_URL = ""
+
 model_graphonomy = deeplab_xception_transfer.deeplab_xception_transfer_projection_savemem(
     n_classes=20,
     hidden_layers=128,
@@ -44,9 +50,9 @@ def index():
     return flask.render_template('index.html', title='virtual-try-on_webapi_flask') 
 
 #================================================================
-# "http://host_ip:5000/try_on" にリクエスト送信時の処理
+# "http://host_ip:5000/api_server" にリクエスト送信時の処理
 #================================================================
-@app.route('/tryon', methods=['POST','OPTIONS'])
+@app.route('/api_server', methods=['POST','OPTIONS'])
 def responce():
     print( "リクエスト受け取り" )
     if( app.debug ):
@@ -75,13 +81,20 @@ def responce():
         pose_parse_img_RGB_pillow.save("tmp/pose_parse_img_vis.png")
 
         #------------------------------------------
-        # OpenPose を用いて人物姿勢 kepoints を生成する。
+        # OpenPose を用いて人物姿勢 keypoints を生成する。
         #------------------------------------------
+        # request 
+        oepnpose_msg = {'pose_img_base64': json_data["pose_img_base64"] }
+        oepnpose_msg = json.dumps(oepnpose_msg)
+        openpose_responce = requests.post(OPENPOSE_SERVER_URL, json=oepnpose_msg)
+        openpose_responce = openpose_responce.json()
+        if( app.debug ):
+            print( "openpose_responce : ", openpose_responce )
 
         #------------------------------------------
         # 試着モデルから試着画像を生成する。
         #------------------------------------------
-        tryon_img_pillow = pose_parse_img_RGB_pillow.copy()
+        tryon_img_pillow = pose_parse_img_RGB_pillow.copy() # dummy
         tryon_img_base64 = conv_pillow_to_base64(tryon_img_pillow)
 
         #------------------------------------------
@@ -125,7 +138,10 @@ if __name__ == "__main__":
     parser.add_argument('--enable_threaded', action='store_true', help="並列処理有効化")
     parser.add_argument('--debug', action='store_true', help="デバッグモード有効化")
     args = parser.parse_args()
-
+    if( args.debug ):
+        for key, value in vars(args).items():
+            print('%s: %s' % (str(key), str(value)))
+            
     if not os.path.exists("tmp"):
         os.mkdir("tmp")
         
