@@ -1,6 +1,7 @@
 #!/bin/sh
 set -eu
 
-python api_server/app.py \
+cd api_server
+python app.py \
     --host "localhost" --port 5000 \
     --debug
