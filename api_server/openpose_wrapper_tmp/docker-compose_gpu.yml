@@ -1,0 +1,22 @@
+version: '2.3'
+
+services:
+    app:
+        container_name: openpose_ubuntu_gpu_container
+        image: openpose_ubuntu_gpu_image
+        runtime: nvidia
+        volumes:
+            - ${PWD}:/home/ubuntu/share/openpose_wrapper
+            - /etc/group:/etc/group:ro
+            - /etc/passwd:/etc/passwd:ro
+        build:
+            context: .
+            dockerfile: Dockerfile_gpu
+        ports:
+            - "5010:5010"
+        tty: true
+        environment:
+            TZ: "Asia/Tokyo"
+            LC_ALL: C.UTF-8
+            LANG: C.UTF-8
+        command: bash -c "sudo cp -r /openpose_gpu . && /bin/bash"

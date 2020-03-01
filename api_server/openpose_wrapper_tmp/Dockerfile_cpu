@@ -1,0 +1,119 @@
+#-----------------------------
+# ベースイメージ
+#-----------------------------
+FROM ubuntu:18.04
+
+#-----------------------------
+# 基本ライブラリのインストール
+#-----------------------------
+# インストール時のキー入力待ちをなくす環境変数
+ENV DEBIAN_FRONTEND noninteractive
+
+RUN set -x && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+    python3-dev \
+    python3-pip \
+    sudo \
+    git \
+    wget \
+    curl \
+    bzip2 \
+    make \
+    cmake \
+    apt-utils \
+    lsb-core \
+    libopencv-dev \
+    # imageのサイズを小さくするためにキャッシュ削除
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip3 install -U numpy opencv-python 
+
+#-----------------------------
+# 環境変数
+#-----------------------------
+ENV LC_ALL=C.UTF-8
+ENV export LANG=C.UTF-8
+ENV PYTHONPATH /usr/local/python/openpose
+
+ARG USER_NAME=ubuntu
+ARG USER_ID=1000
+ARG GROUP_NAME=sudo
+ENV HOME=/home/${USER_NAME}
+ARG WORK_DIR=${HOME}/share/openpose_wrapper
+
+#-----------------------------
+# openpose のインストール
+#-----------------------------
+WORKDIR /openpose_cpu
+RUN git clone https://github.com/CMU-Perceptual-Computing-Lab/openpose.git .
+
+# openpose_cpu/scripts/ubuntu 以下のシェルスクリプトの書き換え
+WORKDIR /openpose_cpu/scripts/ubuntu
+RUN sed -i 's/\<sudo -H\>//g' install_deps.sh; \
+    sed -i 's/\<sudo\>//g' install_deps.sh; \
+    sed -i 's/\<easy_install pip\>//g' install_deps.sh; \
+    sync; sleep 1; bash install_deps.sh
+
+# openpose のビルド
+WORKDIR /openpose_cpu/build
+RUN cmake \
+    -DGPU_MODE:String=CPU_ONLY \
+    -DBUILD_PYTHON=ON \
+    -DDOWNLOAD_BODY_MPI_MODEL:Bool=ON \
+    -DDOWNLOAD_BODY_COCO_MODEL:Bool=ON \
+    -DDOWNLOAD_FACE_MODEL:Bool=ON \
+    -DDOWNLOAD_HAND_MODEL:Bool=ON \
+    ..
+
+# CPU 版では nprocとは打たずに、使用可能なCPU数を書く。引数無しにすれば、勝手に数を判断
+RUN make -j
+#RUN make -j nproc
+
+# 
+WORKDIR /openpose_cpu/build/python/openpose
+RUN cp pyopenpose.cpython-36m-x86_64-linux-gnu.so /usr/local/lib/python3.6/dist-packages
+
+WORKDIR /usr/local/lib/python3.6/dist-packages
+RUN ln -s pyopenpose.cpython-36m-x86_64-linux-gnu.so pyopenpose
+
+#-----------------------------
+# 追加ライブラリのインストール
+#-----------------------------
+RUN pip3 install -U flask
+RUN pip3 install -U flask_cors
+RUN pip3 install -U requests
+RUN pip3 install -U gunicorn
+RUN pip3 install -U pillow
+RUN pip3 install -U tqdm
+RUN pip3 install -U numpy
+
+#-----------------------------
+# ユーザーの追加
+#-----------------------------
+RUN useradd --create-home --uid ${USER_ID} --groups ${GROUP_NAME} --home-dir ${HOME} --shell /bin/bash ${USER_NAME}
+RUN chown -R ${USER_NAME}:${GROUP_NAME} ${HOME}
+RUN echo "${USER_NAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/90-user
+
+# user に sudo 権限を付与
+#RUN sudo gpasswd -a ${USER_NAME} sudo
+
+# 全アクセスを許可
+RUN chmod 777 ${HOME}
+
+# 指定ユーザーに切り替え
+USER ${USER_NAME}
+
+#-----------------------------
+# コンテナ起動後の作業ディレクトリ
+#-----------------------------
+WORKDIR ${WORK_DIR}
+
+# ビルドした openpose を workdir にコピー
+RUN sudo cp -r /openpose_cpu .
+
+# Python API のパス
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/
+ENV PYTHONPATH=$PYTHONPATH:/openpose/build/python/openpose
+#ENV PYTHONPATH=$PYTHONPATH:${WORK_DIR}/openpose/build/python/openpose
