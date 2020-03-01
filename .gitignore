@@ -8,4 +8,4 @@ launch.json
 _old/*
 api_server/_debug/*
 api_server/tmp/*
-api_server/openpose_wrapper_tmp/openpose_gpu/*
+api_server/openpose_wrapper/openpose_gpu/*
