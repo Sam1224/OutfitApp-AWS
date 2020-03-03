@@ -1,22 +1,22 @@
 #!/bin/sh
-IMAGE_DIR=../sample_n5
-WRITE_JSON=../results_json
-WRITE_IMAGE=../results_image
+set -eu
 
-sudo mkdir -p ${IMAGE_DIR}
-sudo mkdir -p ${WRITE_JSON}
-sudo mkdir -p ${WRITE_IMAGE}
+CONTAINER_NAME=openpose_ubuntu_cpu_container
+IMAGE_DIR=sample_n5
+WRITE_JSON=results_json
+WRITE_IMAGE=results_image
 
-cd openpose_cpu
-./build/examples/openpose/openpose.bin \
-    --model_pose COCO \
-    --image_dir ${IMAGE_DIR} --write_json ${WRITE_JSON} --write_images ${WRITE_IMAGE} \
-    --display 0 \
-    --hand
+mkdir -p ${IMAGE_DIR}
+mkdir -p ${WRITE_JSON}
+mkdir -p ${WRITE_IMAGE}
 
-#./build/examples/openpose/openpose.bin \
-#    --model_pose COCO \
-#    --image_dir ${IMAGE_DIR} --write_json ${WRITE_JSON} \
-#    --display 0 \
-#    --render_pose 0 \
-#    --hand
+docker-compose -f docker-compose_cpu.yml stop
+docker-compose -f docker-compose_cpu.yml up -d
+sleep 30
+
+docker exec -it -u $(id -u $USER):$(id -g $USER) ${CONTAINER_NAME} /bin/bash -c "cd openpose_cpu && \
+    ./build/examples/openpose/openpose.bin \
+        --model_pose COCO \
+        --image_dir ../${IMAGE_DIR} --write_json ../${WRITE_JSON} --write_images ../${WRITE_IMAGE} \
+        --display 0 \
+        --hand"

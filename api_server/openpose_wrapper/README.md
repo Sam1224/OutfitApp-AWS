@@ -12,15 +12,17 @@ GPU 版 OpenPose と CPU 版 OpenPose の両方に対応しています。<br>
 ### ◎ 動作環境
 
 - docker 環境で動作します。<br>
-- GPU 版は、nvidia 製 GPU が搭載されていないマシンでは動作しません。
-- GPU 版は、nvidia-docker2 がインストールされている必要があります。
+- GPU 版 OpenPose は、nvidia 製 GPU が搭載されていないマシンでは動作しません。
+- GPU 版 OpenPose は、nvidia-docker2 がインストールされている必要があります。
+- シェルスクリプト `.sh` のみ Windows 非対応です。
 
 ### ◎ 使用法
 
-#### ☆ Ubuntu + GPU 版 OpenPose の Docker
-nvidia 製 GPU で OpenPose を使用する場合は、こちらのイメージを使用してください。
+#### ☆ GPU 版 OpenPose
+「Ubuntu + GPU 版 OpenPose」の Docker イメージを使用して、コンテナ内で OpenPose を実行します。Docker イメージの作成には時間がかかります。
 
-- Docker イメージの作成＆コンテナの起動
+<!--
+- Docker イメージの作成＆コンテナの起動<br>
     以下のコマンドを実行。
     ```sh
     $ sh run_docker-compose_gpu.sh
@@ -32,20 +34,23 @@ nvidia 製 GPU で OpenPose を使用する場合は、こちらのイメージ�
     $ docker-compose -f docker-compose_gpu.yml up -d
     $ docker exec -it -u $(id -u $USER):$(id -g $USER) openpose_ubuntu_gpu_container bash
     ```
+-->
 
-- OpenPose の実行（サーバー機能非使用）<br>
-    Docker コンテナ内で、以下のコマンドを実行。
+- Docker イメージの作成 ＆ OpenPose の実行<br>
+    以下のコマンドを実行。
     ```sh
-    # /home/ubuntu/share/openpose_wrapper
     $ sh run_openpose_gpu.sh
     ```
 
-    又は、Docker コンテナ内で、以下のコマンド例を実行。
+    又は、以下のコマンド例を実行。
     ```sh
-    # /home/ubuntu/share/openpose_wrapper
+    $ docker-compose -f docker-compose_gpu.yml up -d
+    $ docker exec -it -u $(id -u $USER):$(id -g $USER) openpose_ubuntu_gpu_container bash
+
+    # コンテナ内 : /home/ubuntu/share/openpose_wrapper
     $ cd openpose_gpu
 
-    # コマンド例
+    # コンテナ内 : /home/ubuntu/share/openpose_wrapper/openpose_gpu で OpenPose 実行
     $ ./build/examples/openpose/openpose.bin \
         --model_pose COCO \
         --image_dir ../sample_n5 --write_json ../results_json --write_images ../results_image \
@@ -53,7 +58,7 @@ nvidia 製 GPU で OpenPose を使用する場合は、こちらのイメージ�
         --hand
     ```
 
-#### ☆ Ubuntu + CPU 版 OpenPose の Docker イメージ
+#### ☆ CPU 版 OpenPose
 準備中...
 
 <!--
@@ -71,19 +76,21 @@ CPU で OpenPose を使用する場合は、こちらのイメージを使用し
     $ docker exec -it -u $(id -u $USER):$(id -g $USER) openpose_ubuntu_cpu_container bash
     ```
 
-- OpenPose の実行<br>
-    Docker コンテナに入ったあと、以下のコマンドを実行。
+- OpenPose の実行（サーバー機能非使用）<br>
+    以下のコマンドを実行。
     ```sh
-    # /home/ubuntu/share/openpose_wrapper
     $ sh run_openpose_cpu.sh
     ```
 
     又は、以下のコマンド例を実行。
     ```sh
-    # /home/ubuntu/share/openpose_wrapper
+    $ docker-compose -f docker-compose_cpu.yml up -d
+    $ docker exec -it -u $(id -u $USER):$(id -g $USER) openpose_ubuntu_cpu_container bash
+
+    # コンテナ内 : /home/ubuntu/share/openpose_wrapper
     $ cd openpose_cpu
 
-    # コマンド例
+    # コンテナ内 : /home/ubuntu/share/openpose_wrapper/openpose_cpu で OpenPose 実行
     $ ./build/examples/openpose/openpose.bin \
         --model_pose COCO \
         --image_dir ../sample_n5 --write_json ../results_json --write_images ../results_image \
@@ -102,7 +109,6 @@ CPU で OpenPose を使用する場合は、こちらのイメージを使用し
 
 サーバーへのリクエスト処理 `openpose_server/request.py` のみ、以下の conda 環境で動作します。
 
-- Ubuntu : （シェルスクリプト `.sh` のみ）
 - Python : 3.6
 - Anaconda : 
 - tqdm : 
@@ -110,19 +116,21 @@ CPU で OpenPose を使用する場合は、こちらのイメージを使用し
 
 ### ◎ 使用法
 
-#### ☆ Ubuntu + GPU 版 OpenPose の Docker
-nvidia 製 GPU で OpenPose を使用する場合は、こちらのイメージを使用してください。<br>
-デフォルト設定では、5010 番ポートが開放されている必要があります。
+#### ☆ GPU 版 OpenPose サーバー
+サーバー機能非使用時の GPU 版 Docker イメージと同様のイメージを使用し、コンテナ内でサーバーを起動して OpenPose を実行します。<br>
+サーバー機能使用時は、デフォルト設定では、5010 番ポートが開放されている必要があります。
 使用するポート番号は、`docker-compose_gpu.yml` 内の `ports:` タグ、及び、`openpose_server/app.py`, `openpose_server/request.py` の `--port` 引数の値を設定することで変更できます。<br>
 
-- Docker イメージの作成＆コンテナの起動
+<!--
+- Docker イメージの作成＆コンテナの起動<br>
     以下のコマンド例を実行。
     ```sh
     # コマンド例（docker-compose を使用する場合）
     $ docker-compose -f docker-compose_gpu.yml up -d
     ```
+-->
 
-- OpenPose サーバーの立ち上げ＆実行）<br>
+- Docker イメージの作成 ＆ OpenPose サーバーの起動 ＆ API の実行<br>
     以下のコマンドを実行。
     ```sh
     $ sh run_openpose_server_gpu.sh
@@ -140,15 +148,17 @@ nvidia 製 GPU で OpenPose を使用する場合は、こちらのイメージ�
     ```
 
 - OpenPose サーバーへのリクエスト処理<br>
-    OpenPose サーバー実行後、以下のコマンドを実行。
+    OpenPose サーバー起動後、以下のコマンドを実行。
     ```sh
     $ cd openpose_server
     $ python request.py \
         --host 0.0.0.0 --port 5010 \
         --image_dir ../sample_n5 \
-        --write_json ../results_json \
-        --write_images ../results_image
+        --write_json ../results_json
     ```
+
+#### ☆ CPU 版 OpenPose サーバー
+準備中...
 
 ## 【参考】 OpenPose の主なオプション引数
 

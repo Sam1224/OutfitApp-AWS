@@ -2,11 +2,9 @@
 set -eu
 WORK_DIR=${PWD}
 
-#-------------------------------
-# OpenPose サーバーの起動
-#-------------------------------
-cd ${WORK_DIR}/api_server/openpose_wrapper
-nohup sh run_openpose_server_gpu.sh &
+docker-compose -f docker-compose_gpu.yml stop
+docker-compose -f docker-compose_gpu.yml up -d
+#sleep 30
 
 #-------------------------------
 # Graphonomy の起動

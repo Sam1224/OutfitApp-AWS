@@ -5,6 +5,8 @@ import argparse
 import json
 from PIL import Image
 import cv2
+import numpy as np
+import itertools
 
 # flask
 import flask
@@ -56,7 +58,8 @@ def responce():
     # 送信された画像データの変換
     #------------------------------------------
     pose_img_cv = conv_base64_to_cv( json_data["pose_img_base64"] )
-    cv2.imwrite( "tmp/pose_img.png", pose_img_cv )
+    if( app.debug ):
+        cv2.imwrite( "tmp/pose_img.png", pose_img_cv )
 
     #------------------------------------------
     # OpenPose Python-API の実行
@@ -79,19 +82,22 @@ def responce():
     opWrapper.emplaceAndPop([datum])
 
     # keypoints の取得
-    pose_keypoints = datum.poseKeypoints.tolist()    
-    face_keypoints = datum.faceKeypoints.tolist()
+    pose_keypoints_2d = np.delete( datum.poseKeypoints, [8, 19, 20, 21, 22, 23, 24], axis=1).reshape(-1).tolist()
+    face_keypoints_2d = datum.faceKeypoints.reshape(-1).tolist()
     pose_keypoints_3d = datum.poseKeypoints3D.tolist()
     face_keypoints_3d = datum.faceKeypoints3D.tolist()
-    left_hand_keypoints = datum.handKeypoints[0].tolist()
-    right_hand_keypoints = datum.handKeypoints[1].tolist()
-    left_hand_keypoints_3d = datum.handKeypoints3D[0].tolist()
-    right_hand_keypoints_3d = datum.handKeypoints3D[1].tolist()
+    left_hand_keypoints_2d = datum.handKeypoints[0].reshape(-1).tolist()
+    right_hand_keypoints_2d = datum.handKeypoints[1].reshape(-1).tolist()
+    hand_left_keypoints_3d = datum.handKeypoints3D[0].tolist()
+    hand_right_keypoints_3d = datum.handKeypoints3D[1].tolist()
+    """
     if( args.debug ):
-        print("Body keypoints: \n" + str(datum.poseKeypoints))
-        print("pose_keypoints: ", pose_keypoints )
-        print("face_keypoints: ", face_keypoints )
-        print("pose_keypoints_3d: ", pose_keypoints_3d )
+        print("pose_keypoints_2d : ", pose_keypoints_2d )
+        #print("pose_keypoints_2d[0][0] : ", pose_keypoints_2d[0][0] )
+        #print("face_keypoints_2d: ", face_keypoints_2d )
+        #print("pose_keypoints_3d: ", pose_keypoints_3d )
+        #print("datum.cvOutputData: ", datum.cvOutputData )
+    """
 
     #------------------------------------------
     # レスポンスメッセージの設定
@@ -99,15 +105,19 @@ def responce():
     http_status_code = 200
     response = flask.jsonify(
         {
-            'status':'OK',
-            'pose_keypoints' : pose_keypoints,
-            'face_keypoints' : face_keypoints,
-            'pose_keypoints_3d' : pose_keypoints_3d,
-            'face_keypoints_3d' : face_keypoints_3d,
-            'left_hand_keypoints' : left_hand_keypoints,
-            'right_hand_keypoints' : right_hand_keypoints,
-            'left_hand_keypoints_3d' : left_hand_keypoints_3d,
-            'right_hand_keypoints_3d' : right_hand_keypoints_3d
+            "version" : 1.3,
+            "people" : [
+                {
+                    "pose_keypoints_2d" : pose_keypoints_2d,
+                    "face_keypoints_2d" : face_keypoints_2d,
+                    "hand_left_keypoints_2d" : left_hand_keypoints_2d,
+                    "hand_right_keypoints_2d" : right_hand_keypoints_2d,
+                    "pose_keypoints_3d" : pose_keypoints_3d,
+                    "face_keypoints_3d" : face_keypoints_3d,
+                    "hand_left_keypoints_3d" : hand_left_keypoints_3d,
+                    "hand_right_keypoints_3d" : hand_right_keypoints_3d,
+                }
+            ]
         }
     )
 

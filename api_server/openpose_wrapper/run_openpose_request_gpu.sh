@@ -10,6 +10,6 @@ python request.py \
     --host ${HOST_NAME} --port 5010 \
     --image_dir ../sample_n5 \
     --write_json ../results_json \
-    --write_images ../results_image \
     --debug
 
+#    --write_images ../results_image \
