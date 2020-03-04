@@ -28,6 +28,9 @@ $(function(){
 function generateTryOnImage() {
     console.log( "試着画像の合成開始" );
 
+    // 仮想試着サーバーの URL 取得
+    var api_url = document.getElementById("api_url").value;
+
     // Canvas から画像データを取得
     var pose_img_canvas = document.getElementById("selected_file_pose_image_canvas");
     var pose_img_base64 = pose_img_canvas.toDataURL('image/png').replace(/^.*,/, '');
@@ -38,7 +41,8 @@ function generateTryOnImage() {
     try {
         $.ajax({
             //url: 'http://0.0.0.0:5000/api_server',
-            url: 'http://localhost:5000/api_server',
+            //url: 'http://localhost:5000/api_server',
+            url: api_url,            
             type: 'POST',
             dataType: "json",
             data: JSON.stringify({ "pose_img_base64": pose_img_base64, "cloth_img_base64": cloth_img_base64 }),

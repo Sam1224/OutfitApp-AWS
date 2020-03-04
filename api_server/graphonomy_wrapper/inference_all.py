@@ -1,28 +1,31 @@
-import socket
-import timeit
-import numpy as np
-from PIL import Image
-from datetime import datetime
 import os
 import sys
+import argparse
 from collections import OrderedDict
-#sys.path.append('./')
+from datetime import datetime
+import random
+
+import numpy as np
+from PIL import Image
+import cv2
+#import socket
+import timeit
+from tqdm import tqdm
+from apex import amp
+
 # PyTorch includes
 import torch
+import torch.optim as optim
 from torch.autograd import Variable
 from torchvision import transforms
-import cv2
-from tqdm import tqdm
+import torch.nn.functional as F
 
-# Custom includes
+# Graphonomy
 sys.path.append(os.path.join(os.getcwd(), 'Graphonomy'))
 from networks import deeplab_xception_transfer, graph
 from dataloaders import custom_transforms as tr
 
-#
-import argparse
-import torch.nn.functional as F
-
+# グローバル変数
 label_colours = [(0,0,0)
                 , (128,0,0), (255,0,0), (0,85,0), (170,0,51), (255,85,0), (0,0,85), (0,119,221), (85,85,0), (0,85,85), (85,51,0), (52,86,128), (0,128,0)
                 , (0,0,255), (51,170,221), (0,255,255), (85,255,170), (170,255,85), (255,255,0), (255,170,0)]
@@ -88,26 +91,17 @@ def img_transform(img, transform=None):
     sample = transform(sample)
     return sample
 
-def inference(net, img_path='', use_gpu=True):
+def inference(net, img_path, device ):
     # adj
     adj2_ = torch.from_numpy(graph.cihp2pascal_nlp_adj).float()
-    if( use_gpu ):
-        adj2_test = adj2_.unsqueeze(0).unsqueeze(0).expand(1, 1, 7, 20).cuda().transpose(2, 3)
-    else:    
-        adj2_test = adj2_.unsqueeze(0).unsqueeze(0).expand(1, 1, 7, 20).transpose(2, 3)
+    adj2_test = adj2_.unsqueeze(0).unsqueeze(0).expand(1, 1, 7, 20).to(device).transpose(2, 3)
 
     adj1_ = Variable(torch.from_numpy(graph.preprocess_adj(graph.pascal_graph)).float())
-    if( use_gpu ):
-        adj3_test = adj1_.unsqueeze(0).unsqueeze(0).expand(1, 1, 7, 7).cuda()
-    else:
-        adj3_test = adj1_.unsqueeze(0).unsqueeze(0).expand(1, 1, 7, 7)
+    adj3_test = adj1_.unsqueeze(0).unsqueeze(0).expand(1, 1, 7, 7).to(device)
 
     cihp_adj = graph.preprocess_adj(graph.cihp_graph)
     adj3_ = Variable(torch.from_numpy(cihp_adj).float())
-    if( use_gpu ):
-        adj1_test = adj3_.unsqueeze(0).unsqueeze(0).expand(1, 1, 20, 20).cuda()
-    else:
-        adj1_test = adj3_.unsqueeze(0).unsqueeze(0).expand(1, 1, 20, 20)
+    adj1_test = adj3_.unsqueeze(0).unsqueeze(0).expand(1, 1, 20, 20).to(device)
 
     # multi-scale
     scale_list = [1, 0.5, 0.75, 1.25, 1.5, 1.75]
@@ -129,12 +123,13 @@ def inference(net, img_path='', use_gpu=True):
         testloader_list.append(img_transform(img, composed_transforms_ts))
         # print(img_transform(img, composed_transforms_ts))
         testloader_flip_list.append(img_transform(img, composed_transforms_ts_flip))
+
     # print(testloader_list)
     start_time = timeit.default_timer()
     # One testing epoch
     net.eval()
-    # 1 0.5 0.75 1.25 1.5 1.75 ; flip:
 
+    # 1 0.5 0.75 1.25 1.5 1.75 ; flip:
     for iii, sample_batched in enumerate(zip(testloader_list, testloader_flip_list)):
         inputs, labels = sample_batched[0]['image'], sample_batched[0]['label']
         inputs_f, _ = sample_batched[1]['image'], sample_batched[1]['label']
@@ -149,15 +144,9 @@ def inference(net, img_path='', use_gpu=True):
         inputs = Variable(inputs, requires_grad=False)
 
         with torch.no_grad():
-            if use_gpu:
-                inputs = inputs.cuda()
+            inputs = inputs.to(device)
             # outputs = net.forward(inputs)
-
-            if( use_gpu ):
-                outputs = net.forward(inputs, adj1_test.cuda(), adj3_test.cuda(), adj2_test.cuda())
-            else:
-                outputs = net.forward(inputs, adj1_test, adj3_test, adj2_test )
-
+            outputs = net.forward(inputs, adj1_test.to(device), adj3_test.to(device), adj2_test.to(device))
             outputs = (outputs[0] + flip(flip_cihp(outputs[1]), dim=-1)) / 2
             outputs = outputs.unsqueeze(0)
 
@@ -166,6 +155,7 @@ def inference(net, img_path='', use_gpu=True):
                 outputs_final = outputs_final + outputs
             else:
                 outputs_final = outputs.clone()
+
     ################ plot pic
     predictions = torch.max(outputs_final, 1)[1]
     results = predictions.cpu().numpy()
@@ -182,57 +172,92 @@ def inference(net, img_path='', use_gpu=True):
 if __name__ == '__main__':
     '''argparse begin'''
     parser = argparse.ArgumentParser()
+    parser.add_argument('--device', choices=['cpu', 'gpu'], default="gpu", help="使用デバイス (CPU or GPU)")
     parser.add_argument('--in_image_dir', type=str, default="images", help="入力画像のディレクトリ" )
     parser.add_argument('--results_dir', type=str, default="results", help="生成画像の出力ディレクトリ")
     parser.add_argument('--load_checkpoints_path', default='checkpoints/universal_trained.pth', type=str, help="学習済みモデルのチェックポイントへのパス")
-    parser.add_argument('--use_gpu', default=1, type=int)
     parser.add_argument('--save_vis', action='store_true', help="視覚用のRGB画像の人物パース画像も保存するか否か")
+    parser.add_argument("--seed", type=int, default=8, help="乱数シード値")
+    parser.add_argument('--use_amp', action='store_true', help="AMP [Automatic Mixed Precision] の使用有効化")
+    parser.add_argument('--opt_level', choices=['O0','O1','O2','O3'], default='O1', help='mixed precision calculation mode')
     parser.add_argument('--debug', action='store_true', help="デバッグモード有効化")
-    opts = parser.parse_args()
-    if( opts.debug ):
-        for key, value in vars(opts).items():
+    args = parser.parse_args()
+    if( args.debug ):
+        for key, value in vars(args).items():
             print('%s: %s' % (str(key), str(value)))
 
-    net = deeplab_xception_transfer.deeplab_xception_transfer_projection_savemem(
+    # 各種出力ディレクトリ
+    if not( os.path.exists(args.results_dir) ):
+        os.mkdir(args.results_dir)
+
+    # 実行 Device の設定
+    if( args.device == "gpu" ):
+        use_cuda = torch.cuda.is_available()
+        if( use_cuda == True ):
+            device = torch.device( "cuda" )
+            print( "実行デバイス :", device)
+            print( "GPU名 :", torch.cuda.get_device_name(device))
+            print("torch.cuda.current_device() =", torch.cuda.current_device())
+        else:
+            print( "can't using gpu." )
+            device = torch.device( "cpu" )
+            print( "実行デバイス :", device)
+    else:
+        device = torch.device( "cpu" )
+        print( "実行デバイス :", device)
+
+    # seed 値の固定
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    torch.cuda.manual_seed(args.seed)
+
+    #-------------------------------
+    # モデルの定義
+    #-------------------------------
+    model = deeplab_xception_transfer.deeplab_xception_transfer_projection_savemem(
         n_classes=20,
         hidden_layers=128,
         source_classes=7, 
-    )
-    if( opts.debug ):
-        print( net )
+    ).to(device)
+    if( args.debug ):
+        print( model )
 
-    if not opts.load_checkpoints_path == '':
-        if( opts.use_gpu >0 ):
-            #x = torch.load(opts.load_checkpoints_path)
-            #net.load_source_model(x)
-            net.load_state_dict( torch.load(opts.load_checkpoints_path), strict=False )
+    if not args.load_checkpoints_path == '':
+        if( args.device == "gpu" ):
+            #x = torch.load(args.load_checkpoints_path)
+            #model.load_source_model(x)
+            model.load_state_dict( torch.load(args.load_checkpoints_path), strict=False )
         else:
-            net.load_state_dict( torch.load(opts.load_checkpoints_path, map_location="cpu"), strict=False )
+            model.load_state_dict( torch.load(args.load_checkpoints_path, map_location="cpu"), strict=False )
     else:
         print('no model load !!!!!!!!')
         raise RuntimeError('No model!!!!')
 
-    if opts.use_gpu >0 :
-        net.cuda()
-        use_gpu = True
-    else:
-        net.cpu()
-        use_gpu = False
-        raise RuntimeError('must use the gpu!!!!')
+    #-------------------------------
+    # AMP の適用（使用メモリ削減効果）
+    #-------------------------------
+    if( args.use_amp ):
+        # dummy の optimizer
+        optimizer = optim.Adam( params = model.parameters(), lr = 0.0001, betas = (0.5,0.999) )
 
-    # 各種出力ディレクトリ
-    if not( os.path.exists(opts.results_dir) ):
-        os.mkdir(opts.results_dir)
+        # amp initialize
+        model, optimizer = amp.initialize(
+            model, 
+            optimizer, 
+            opt_level = args.opt_level,
+            num_losses = 1
+        )
 
     #-------------------------------
-    # Graphonomy
+    # フォルダ内の全画像に対して推論処理
     #-------------------------------
-    image_names = sorted( [f for f in os.listdir(opts.in_image_dir) if f.endswith(('.jpg','.jpeg','.png','.bmp'))] )
+    image_names = sorted( [f for f in os.listdir(args.in_image_dir) if f.endswith(('.jpg','.jpeg','.png','.bmp'))] )
     for image_name in tqdm(image_names):
-        in_img_path = os.path.join( opts.in_image_dir, image_name )
-        img = Image.open( os.path.join(opts.in_image_dir, image_name ) )
-        parse_img, parse_img_RGB = inference( net=net, img_path=in_img_path, use_gpu=use_gpu )
+        in_img_path = os.path.join( args.in_image_dir, image_name )
+        img = Image.open( os.path.join(args.in_image_dir, image_name ) )
+        parse_img, parse_img_RGB = inference( net=model, img_path=in_img_path, device=device )
 
-        cv2.imwrite( os.path.join( opts.results_dir, image_name.split(".")[0] + ".png" ), parse_img )
-        if( opts.save_vis ):
-            parse_img_RGB.save( os.path.join( opts.results_dir, image_name.split(".")[0] + "_vis.png" ) )
+        cv2.imwrite( os.path.join( args.results_dir, image_name.split(".")[0] + ".png" ), parse_img )
+        if( args.save_vis ):
+            parse_img_RGB.save( os.path.join( args.results_dir, image_name.split(".")[0] + "_vis.png" ) )

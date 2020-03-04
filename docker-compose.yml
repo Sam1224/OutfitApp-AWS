@@ -1,0 +1,84 @@
+version: '2.3'
+
+services:
+    openpose_gpu_server:
+        container_name: openpose_ubuntu_gpu_container
+        image: openpose_ubuntu_gpu_image
+        runtime: nvidia
+        volumes:
+            - ${PWD}/api_server/openpose_wrapper:/home/ubuntu/share/openpose_wrapper
+            - /etc/group:/etc/group:ro
+            - /etc/passwd:/etc/passwd:ro
+        build:
+            context: api_server/openpose_wrapper
+            dockerfile: Dockerfile_gpu
+        ports:
+            - "5010:5010"
+        tty: true
+        environment:
+            TZ: "Asia/Tokyo"
+            LC_ALL: C.UTF-8
+            LANG: C.UTF-8
+        command: bash -c "sudo cp -r /openpose_gpu . && cd openpose_server && python3 app.py --host 0.0.0.0 --port 5010 --debug"
+
+    graphonomy_server_gpu:
+        container_name: graphonomy_server_gpu_container
+        image: graphonomy_wrapper_image
+        runtime: nvidia
+        build:
+            context: "api_server/graphonomy_wrapper"
+            dockerfile: Dockerfile
+        volumes:
+            - ${PWD}/api_server/graphonomy_wrapper:/home/ubuntu/share/graphonomy_wrapper
+            - /etc/group:/etc/group:ro
+            - /etc/passwd:/etc/passwd:ro
+        ports:
+            - "5001:5001"
+        tty: true
+        environment:
+            TZ: "Asia/Tokyo"
+            LC_ALL: C.UTF-8
+            LANG: C.UTF-8
+        command: bash -c "python3 app.py --host 0.0.0.0 --port 5001 --device gpu --debug"
+
+    graphonomy_server_cpu:
+        container_name: graphonomy_server_cpu_container
+        image: graphonomy_wrapper_image
+        build:
+            context: "api_server/graphonomy_wrapper"
+            dockerfile: Dockerfile
+        volumes:
+            - ${PWD}/api_server/graphonomy_wrapper:/home/ubuntu/share/graphonomy_wrapper
+            - /etc/group:/etc/group:ro
+            - /etc/passwd:/etc/passwd:ro
+        ports:
+            - "5002:5002"
+        tty: true
+        environment:
+            TZ: "Asia/Tokyo"
+            LC_ALL: C.UTF-8
+            LANG: C.UTF-8
+        command: bash -c "python3 app.py --host 0.0.0.0 --port 5002 --device cpu --debug"
+
+    api_server_gpu:
+        container_name: api_server_gpu_container
+        image: api_server_image
+        runtime: nvidia
+        build:
+            context: "api_server"
+            dockerfile: Dockerfile
+        volumes:
+            - ${PWD}/api_server:/home/ubuntu/share/api_server
+            - /etc/group:/etc/group:ro
+            - /etc/passwd:/etc/passwd:ro
+        ports:
+            - "5000:5000"
+        depends_on:
+            - openpose_gpu_server
+            - graphonomy_server_gpu
+        tty: true
+        environment:
+            TZ: "Asia/Tokyo"
+            LC_ALL: C.UTF-8
+            LANG: C.UTF-8
+        command: bash -c "python3 app.py --host 0.0.0.0 --port 5000 --device gpu --debug"

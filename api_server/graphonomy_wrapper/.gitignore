@@ -1,4 +1,6 @@
 *.pyc
 *.pth
+*.code-workspace
 
 _old/
+tmp/

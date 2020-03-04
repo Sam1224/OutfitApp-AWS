@@ -7,6 +7,7 @@ import numpy as np
 from PIL import Image
 import cv2
 import requests
+import random
 
 # flask
 import flask
@@ -16,40 +17,14 @@ from flask_cors import CORS
 import torch
 
 # 自作モジュール
-import options as args
 from utils import conv_base64_to_pillow, conv_pillow_to_base64, conv_tensor_to_pillow, create_binary_mask
 from utils import save_checkpoint, load_checkpoint
-from model_networks import GMM, End2EndGenerator
+from networks import GMM, End2EndGenerator
 from dataset import VtonDataset, VtonDataLoader
-
-sys.path.append(os.path.join(os.getcwd(), 'graphonomy_wrapper'))
-sys.path.append(os.path.join(os.getcwd(), 'graphonomy_wrapper/Graphonomy'))
-from inference_all import inference
-from networks import deeplab_xception_transfer, graph
 
 #======================
 # グローバル変数
 #======================
-dataset_dir = args.dataset_dir
-reuse_tom_wuton_agnotic = args.reuse_tom_wuton_agnotic
-
-# 実行 Device の設定
-if( args.device == "gpu" ):
-    use_cuda = torch.cuda.is_available()
-    if( use_cuda == True ):
-        device = torch.device( "cuda" )
-        #torch.cuda.set_device(args.gpu_ids[0])
-        print( "実行デバイス :", device)
-        print( "GPU名 :", torch.cuda.get_device_name(device))
-        print("torch.cuda.current_device() =", torch.cuda.current_device())
-    else:
-        print( "can't using gpu." )
-        device = torch.device( "cpu" )
-        print( "実行デバイス :", device)
-else:
-    device = torch.device( "cpu" )
-    print( "実行デバイス :", device)
-
 #-----------------
 # flask 関連
 #-----------------
@@ -64,48 +39,41 @@ app.config["JSON_SORT_KEYS"] = False    # ソートをそのまま
 #-----------------
 # OpenPose 関連
 #-----------------
-#OPENPOSE_SERVER_URL = "http://openpose_ubuntu_gpu_container:5010/openpose"
-#OPENPOSE_SERVER_URL = "http://localhost:5010/openpose"
-OPENPOSE_SERVER_URL = "http://0.0.0.0:5010/openpose"
+#openpose_server_url = "http://openpose_ubuntu_gpu_container:5010/openpose"
+#openpose_server_url = "http://localhost:5010/openpose"
+openpose_server_url = "http://0.0.0.0:5010/openpose"
 
 #-----------------
 # Graphonomy 関連
 #-----------------
-GRAPHONOMY_SERVER_URL = ""
-"""
-model_graphonomy = deeplab_xception_transfer.deeplab_xception_transfer_projection_savemem(
-    n_classes=20,
-    hidden_layers=128,
-    source_classes=7, 
-).to(device)
-"""
-model_graphonomy = deeplab_xception_transfer.deeplab_xception_transfer_projection_savemem(
-    n_classes=20,
-    hidden_layers=128,
-    source_classes=7, 
-).cpu()
-
-"""    
-if( args.device == "gpu" ):
-    model_graphonomy.load_state_dict( torch.load("graphonomy_wrapper/checkpoints/universal_trained.pth"), strict=False )
-else:
-    model_graphonomy.load_state_dict( torch.load("graphonomy_wrapper/checkpoints/universal_trained.pth", map_location="cpu"), strict=False )
-"""
-model_graphonomy.load_state_dict( torch.load("graphonomy_wrapper/checkpoints/universal_trained.pth", map_location="cpu"), strict=False )
+graphonomy_server_url = "http://0.0.0.0:5001/graphonomy"
 
 #-----------------
-# 試着モデル
+# 試着モデル関連
 #-----------------
-model_G = End2EndGenerator( args, device, use_cuda=True ).to(device)
-if not args.load_checkpoints_gmm_path == '' and os.path.exists(args.load_checkpoints_gmm_path):
-    load_checkpoint( model_G.model_gmm, device, args.load_checkpoints_gmm_path )
-if not args.load_checkpoints_tom_path == '' and os.path.exists(args.load_checkpoints_tom_path):
-    load_checkpoint( model_G.model_tom, device, args.load_checkpoints_tom_path )
+device = "gpu"
+dataset_dir = "datasets"
+pair_list_path = "datasets/test_pairs.csv"
+load_checkpoints_gmm_path = "checkpoints/improved_cp-vton_train_end2end_zalando_vton_dataset1_256_use_tom_agnotic_200215/GMM/gmm_final.pth"
+load_checkpoints_tom_path = "checkpoints/my-vton_train_end2end_zalando_vton_dataset2_256_200218/TOM/tom_final.pth"
+batch_size = 1
+image_height = 256
+image_width = 192
+grid_size = 5
 
-model_G.eval()
+gmm_agnostic_type = "agnostic1"
+tom_agnostic_type = "agnostic2"
+use_tom_wuton_agnotic = False
+wuton_agnotic_kernel_size = 6
+reuse_tom_wuton_agnotic = True
+eval_poseA_or_poseB = "poseB"
 
-ds_test = VtonDataset( args, args.dataset_dir, "test", args.pair_list_path )
-dloader_test = VtonDataLoader(ds_test, batch_size=args.batch_size, shuffle=False )
+seed = 8
+debug = True
+
+model_G = None
+ds_test = None
+dloader_test = None
 
 #================================================================
 # "http://host_ip:5000" リクエスト送信（＝ページにアクセス）時の処理
@@ -151,11 +119,32 @@ def responce():
     #------------------------------------------
     # Graphonomy を用いて人物パース画像を生成する。
     #------------------------------------------
-    pose_parse_img_pillow, pose_parse_img_RGB_pillow = get_humanparse_from_graphonomy( model_graphonomy, poseA_img_path, use_gpu=False )
+    graphonomy_msg = {'pose_img_base64': json_data["pose_img_base64"] }
+    graphonomy_msg = json.dumps(graphonomy_msg)     # dict を JSON 文字列として整形して出力
+    try:
+        graphonomy_responce = requests.post( graphonomy_server_url, json=graphonomy_msg )
+        graphonomy_responce = graphonomy_responce.json()
+
+    except Exception as e:
+        print( "通信失敗 [Graphonomy]" )
+        print( "Exception : ", e )
+        http_status_code = 400
+        response = flask.jsonify(
+            {
+                'status':'NG',
+            }
+        )
+        return http_status_code, response
+
+    pose_parse_img_base64 = graphonomy_responce["pose_parse_img_base64"]
+    pose_parse_img_RGB_base64 = graphonomy_responce["pose_parse_img_RGB_base64"]
+    pose_parse_img_pillow = conv_base64_to_pillow(pose_parse_img_base64)
+    pose_parse_img_RGB_pillow = conv_base64_to_pillow(pose_parse_img_RGB_base64)
+
     pose_parse_img_pillow.save( os.path.join( dataset_dir, "test", "poseA_parsing", "1.png" ) )
     pose_parse_img_pillow.save( os.path.join( dataset_dir, "test", "poseB_parsing", "1.png" ) )
-    pose_parse_img_pillow.save( os.path.join( dataset_dir, "test", "poseA_parsing", "1_vis.png" ) )
-    pose_parse_img_pillow.save( os.path.join( dataset_dir, "test", "poseB_parsing", "1_vis.png" ) )
+    pose_parse_img_RGB_pillow.save( os.path.join( dataset_dir, "test", "poseA_parsing", "1_vis.png" ) )
+    pose_parse_img_RGB_pillow.save( os.path.join( dataset_dir, "test", "poseB_parsing", "1_vis.png" ) )
 
     #------------------------------------------
     # OpenPose を用いて人物姿勢 keypoints を生成する。
@@ -164,7 +153,7 @@ def responce():
     oepnpose_msg = {'pose_img_base64': json_data["pose_img_base64"] }
     oepnpose_msg = json.dumps(oepnpose_msg)
     try:
-        openpose_responce = requests.post(OPENPOSE_SERVER_URL, json=oepnpose_msg)
+        openpose_responce = requests.post(openpose_server_url, json=oepnpose_msg)
         openpose_responce = openpose_responce.json()
         """
         if( app.debug ):
@@ -179,6 +168,13 @@ def responce():
     except Exception as e:
         print( "通信失敗 [OpenPose]" )
         print( "Exception : ", e )
+        http_status_code = 400
+        response = flask.jsonify(
+            {
+                'status':'NG',
+            }
+        )
+        return http_status_code, response
 
     #------------------------------------------
     # 前処理
@@ -258,27 +254,107 @@ def responce():
     return response, http_status_code
 
 
-def get_humanparse_from_graphonomy( model, pose_img_path, use_gpu=False ):
-    pose_parse_img_np, pose_parse_img_RGB_pillow = inference( net=model, img_path=pose_img_path, use_gpu=use_gpu )
-    pose_parse_img_pillow = Image.fromarray( np.uint8(pose_parse_img_np.transpose(0,1)) , 'L')
-    return pose_parse_img_pillow, pose_parse_img_RGB_pillow
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--host', type=str, default="localhost", help="IP アドレス / 0.0.0.0 でどこからでもアクセス可")
+    #parser.add_argument('--host', type=str, default="localhost", help="IP アドレス / 0.0.0.0 でどこからでもアクセス可")
+    parser.add_argument('--host', type=str, default="0.0.0.0", help="IP アドレス / 0.0.0.0 でどこからでもアクセス可")
     parser.add_argument('--port', type=str, default="5000", help="ポート番号")
     parser.add_argument('--enable_threaded', action='store_true', help="並列処理有効化")
+
+    parser.add_argument('--openpose_server_url', type=str, default="http://0.0.0.0:5010/openpose", help="OpenPose サーバーの URL")
+    parser.add_argument('--graphonomy_server_url', type=str, default="http://0.0.0.0:5001/graphonomy", help="Graphonomy サーバーの URL")
+
+    parser.add_argument('--device', choices=['cpu', 'gpu'], default="gpu", help="使用デバイス (CPU or GPU)")
+    parser.add_argument('--dataset_dir', type=str, default="datasets", help="データセットのディレクトリ")
+    parser.add_argument('--pair_list_path', type=str, default="datasets/test_pairs.csv", help="ペアリストファイル名")
+    parser.add_argument('--load_checkpoints_gmm_path', type=str, default="checkpoints/improved_cp-vton_train_end2end_zalando_vton_dataset1_256_use_tom_agnotic_200215/GMM/gmm_final.pth", help="GMMモデルの読み込みファイルのパス")
+    parser.add_argument('--load_checkpoints_tom_path', type=str, default="checkpoints/my-vton_train_end2end_zalando_vton_dataset2_256_200218/TOM/tom_final.pth", help="TOMモデルの読み込みファイルのパス")
+    parser.add_argument('--batch_size', type=int, default=1, help="バッチサイズ")
+    parser.add_argument('--image_height', type=int, default=256, help="入力画像の高さ（pixel単位）")
+    parser.add_argument('--image_width', type=int, default=192, help="入力画像の幅（pixel単位）")
+    parser.add_argument('--grid_size', type=int, default=5)
+
+    parser.add_argument('--gmm_agnostic_type', choices=['agnostic1', 'agnostic2', 'agnostic3'], default="agnostic1", help="GMM agnotic の形状タイプ")
+    parser.add_argument('--tom_agnostic_type', choices=['agnostic1', 'agnostic2', 'agnostic3'], default="agnostic2", help="TOM agnotic の形状タイプ")
+    parser.add_argument('--use_tom_wuton_agnotic', action='store_true', help="WUTON 形式の agnotic 入力を使用するか否か")
+    parser.add_argument('--wuton_agnotic_kernel_size', type=int, default=6, help="WUTON 形式の agnotic 入力の膨張カーネルサイズ")
+    parser.add_argument('--reuse_tom_wuton_agnotic', action='store_false', help="WUTON 形式の agnotic 入力を再利用するか否か")
+    parser.add_argument('--eval_poseA_or_poseB', choices=['poseA', 'poseB'], default="poseB", help="人物画像の推論対象")
+
+    parser.add_argument("--seed", type=int, default=8, help="乱数シード値")
     parser.add_argument('--debug', action='store_true', help="デバッグモード有効化")
     args = parser.parse_args()
     if( args.debug ):
         for key, value in vars(args).items():
             print('%s: %s' % (str(key), str(value)))
-                    
-    if( args.debug ):
-        app.debug = True
-    else:
-        app.debug = False
 
+    #------------------------------------
+    # グローバル変数の設定
+    #------------------------------------
+    openpose_server_url = args.openpose_server_url
+    graphonomy_server_url = args.graphonomy_server_url
+
+    device = args.device
+    dataset_dir = args.dataset_dir
+    pair_list_path = args.pair_list_path
+    load_checkpoints_gmm_path = args.load_checkpoints_gmm_path
+    load_checkpoints_tom_path = args.load_checkpoints_tom_path
+    batch_size = args.batch_size
+    image_height = args.image_height
+    image_width = args.image_width
+    grid_size = args.grid_size
+    gmm_agnostic_type = args.gmm_agnostic_type
+    tom_agnostic_type = args.tom_agnostic_type
+    use_tom_wuton_agnotic = args.use_tom_wuton_agnotic
+    wuton_agnotic_kernel_size = args.wuton_agnotic_kernel_size
+    reuse_tom_wuton_agnotic = args.reuse_tom_wuton_agnotic
+    eval_poseA_or_poseB = args.eval_poseA_or_poseB
+    seed = args.seed
+    debug = args.debug
+
+    #------------------------------------
+    # 実行 Device の設定
+    #------------------------------------
+    if( args.device == "gpu" ):
+        use_cuda = torch.cuda.is_available()
+        if( use_cuda == True ):
+            device = torch.device( "cuda" )
+            #torch.cuda.set_device(args.gpu_ids[0])
+            print( "実行デバイス :", device)
+            print( "GPU名 :", torch.cuda.get_device_name(device))
+            print("torch.cuda.current_device() =", torch.cuda.current_device())
+        else:
+            print( "can't using gpu." )
+            device = torch.device( "cpu" )
+            print( "実行デバイス :", device)
+    else:
+        device = torch.device( "cpu" )
+        print( "実行デバイス :", device)
+
+    # seed 値の固定
+    np.random.seed(args.seed)
+    random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    torch.cuda.manual_seed(args.seed)
+
+    #------------------------------------
+    # 試着モデル
+    #------------------------------------
+    model_G = End2EndGenerator( args, device, use_cuda=True ).to(device)
+    if not args.load_checkpoints_gmm_path == '' and os.path.exists(args.load_checkpoints_gmm_path):
+        load_checkpoint( model_G.model_gmm, device, args.load_checkpoints_gmm_path )
+    if not args.load_checkpoints_tom_path == '' and os.path.exists(args.load_checkpoints_tom_path):
+        load_checkpoint( model_G.model_tom, device, args.load_checkpoints_tom_path )
+
+    model_G.eval()
+
+    ds_test = VtonDataset( args, args.dataset_dir, "test", args.pair_list_path )
+    dloader_test = VtonDataLoader(ds_test, batch_size=args.batch_size, shuffle=False )
+
+    #------------------------------------
+    # Flask の起動
+    #------------------------------------
+    app.debug = args.debug
     if( args.enable_threaded ):
         app.run( host=args.host, port=args.port, threaded=False )
     else:
