@@ -39,14 +39,15 @@ app.config["JSON_SORT_KEYS"] = False    # ソートをそのまま
 #-----------------
 # OpenPose 関連
 #-----------------
-#openpose_server_url = "http://openpose_ubuntu_gpu_container:5010/openpose"
+openpose_server_url = "http://openpose_ubuntu_gpu_container:5010/openpose"
 #openpose_server_url = "http://localhost:5010/openpose"
-openpose_server_url = "http://0.0.0.0:5010/openpose"
+#openpose_server_url = "http://0.0.0.0:5010/openpose"
 
 #-----------------
 # Graphonomy 関連
 #-----------------
-graphonomy_server_url = "http://0.0.0.0:5001/graphonomy"
+graphonomy_server_url = "http://graphonomy_server_gpu_container:5001/graphonomy"
+#graphonomy_server_url = "http://0.0.0.0:5001/graphonomy"
 
 #-----------------
 # 試着モデル関連
@@ -261,8 +262,8 @@ if __name__ == "__main__":
     parser.add_argument('--port', type=str, default="5000", help="ポート番号")
     parser.add_argument('--enable_threaded', action='store_true', help="並列処理有効化")
 
-    parser.add_argument('--openpose_server_url', type=str, default="http://0.0.0.0:5010/openpose", help="OpenPose サーバーの URL")
-    parser.add_argument('--graphonomy_server_url', type=str, default="http://0.0.0.0:5001/graphonomy", help="Graphonomy サーバーの URL")
+    parser.add_argument('--openpose_server_url', type=str, default="http://openpose_ubuntu_gpu_container:5010/openpose", help="OpenPose サーバーの URL")
+    parser.add_argument('--graphonomy_server_url', type=str, default="http://graphonomy_server_gpu_container:5001/graphonomy", help="Graphonomy サーバーの URL")
 
     parser.add_argument('--device', choices=['cpu', 'gpu'], default="gpu", help="使用デバイス (CPU or GPU)")
     parser.add_argument('--dataset_dir', type=str, default="datasets", help="データセットのディレクトリ")
