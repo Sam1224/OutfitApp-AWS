@@ -53,7 +53,7 @@ function generateTryOnImage() {
         .done(function(data, textStatus, jqXHR) {
             // 通信成功時の処理を記述
             console.log( "試着画像の通信成功" );
-            console.log( data.tryon_img_base64 );
+            //console.log( data.tryon_img_base64 );
             console.log( textStatus );
             console.log( jqXHR );
 

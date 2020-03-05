@@ -21,7 +21,7 @@ services:
             LANG: C.UTF-8
         command: bash -c "sudo cp -r /openpose_gpu . && cd openpose_server && python3 app.py --host 0.0.0.0 --port 5010 --debug"
 
-    graphonomy_server_gpu:
+    graphonomy_gpu_server:
         container_name: graphonomy_server_gpu_container
         image: graphonomy_wrapper_image
         runtime: nvidia
@@ -39,28 +39,9 @@ services:
             TZ: "Asia/Tokyo"
             LC_ALL: C.UTF-8
             LANG: C.UTF-8
-        command: bash -c "python3 app.py --host 0.0.0.0 --port 5001 --device gpu --debug"
+        command: bash -c "python3 app.py --host 0.0.0.0 --port 5001 --device gpu --use_amp --debug"
 
-    graphonomy_server_cpu:
-        container_name: graphonomy_server_cpu_container
-        image: graphonomy_wrapper_image
-        build:
-            context: "api_server/graphonomy_wrapper"
-            dockerfile: Dockerfile
-        volumes:
-            - ${PWD}/api_server/graphonomy_wrapper:/home/ubuntu/share/graphonomy_wrapper
-            - /etc/group:/etc/group:ro
-            - /etc/passwd:/etc/passwd:ro
-        ports:
-            - "5002:5002"
-        tty: true
-        environment:
-            TZ: "Asia/Tokyo"
-            LC_ALL: C.UTF-8
-            LANG: C.UTF-8
-        command: bash -c "python3 app.py --host 0.0.0.0 --port 5002 --device cpu --debug"
-
-    api_server_gpu:
+    api_gpu_server:
         container_name: api_server_gpu_container
         image: api_server_image
         runtime: nvidia
@@ -75,11 +56,11 @@ services:
             - "5000:5000"
         depends_on:
             - openpose_gpu_server
-            - graphonomy_server_gpu
+            - graphonomy_gpu_server
         tty: true
         environment:
             TZ: "Asia/Tokyo"
             LC_ALL: C.UTF-8
             LANG: C.UTF-8
-        command: bash -c "python3 app.py --host 0.0.0.0 --port 5000 --device gpu --debug"
+        command: bash -c "python3 app.py --host 0.0.0.0 --port 5000 --device gpu --use_amp --reuse_tom_wuton_agnotic --debug"
 

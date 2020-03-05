@@ -7,6 +7,7 @@ from PIL import Image
 import cv2
 import numpy as np
 import itertools
+from apex import amp
 
 # flask
 import flask
@@ -14,6 +15,7 @@ from flask_cors import CORS
 
 # PyTorch
 import torch
+import torch.optim as optim
 
 # Graphonomy
 sys.path.append(os.path.join(os.getcwd(), 'Graphonomy'))
@@ -120,6 +122,8 @@ if __name__ == "__main__":
     parser.add_argument('--enable_threaded', action='store_true', help="並列処理有効化")
     parser.add_argument('--device', choices=['cpu', 'gpu'], default="gpu", help="使用デバイス (CPU or GPU)")
     parser.add_argument('--load_checkpoints_path', default='checkpoints/universal_trained.pth', type=str, help="学習済みモデルのチェックポイントへのパス")
+    parser.add_argument('--use_amp', action='store_true', help="AMP [Automatic Mixed Precision] の使用有効化")
+    parser.add_argument('--opt_level', choices=['O0','O1','O2','O3'], default='O1', help='mixed precision calculation mode')
     parser.add_argument('--debug', action='store_true', help="デバッグモード有効化")
     args = parser.parse_args()
     if( args.debug ):
@@ -168,6 +172,21 @@ if __name__ == "__main__":
     else:
         print('no model load !!!!!!!!')
         raise RuntimeError('No model!!!!')
+
+    #-------------------------------
+    # AMP の適用（使用メモリ削減効果）
+    #-------------------------------
+    if( args.use_amp ):
+        # dummy の optimizer
+        optimizer = optim.Adam( params = model.parameters(), lr = 0.0001, betas = (0.5,0.999) )
+
+        # amp initialize
+        model, optimizer = amp.initialize(
+            model, 
+            optimizer, 
+            opt_level = args.opt_level,
+            num_losses = 1
+        )
 
     #--------------------------
     # Flask の起動

@@ -8,6 +8,7 @@ from PIL import Image
 import cv2
 import requests
 import random
+from apex import amp
 
 # flask
 import flask
@@ -15,6 +16,7 @@ from flask_cors import CORS
 
 # PyTorch
 import torch
+import torch.optim as optim
 
 # 自作モジュール
 from utils import conv_base64_to_pillow, conv_pillow_to_base64, conv_tensor_to_pillow, create_binary_mask
@@ -113,6 +115,11 @@ def responce():
     #------------------------------------------
     pose_img_pillow = conv_base64_to_pillow( json_data["pose_img_base64"] )
     cloth_img_pillow = conv_base64_to_pillow( json_data["cloth_img_base64"] )
+    pose_img_pillow = pose_img_pillow.resize( (image_width, image_height), resample = Image.LANCZOS )
+    cloth_img_pillow = cloth_img_pillow.resize( (image_width, image_height), resample = Image.LANCZOS )
+    pose_img_base64 = conv_pillow_to_base64( pose_img_pillow )
+    cloth_img_base64 = conv_pillow_to_base64( cloth_img_pillow )
+
     pose_img_pillow.save( poseA_img_path )
     pose_img_pillow.save( poseB_img_path )
     cloth_img_pillow.save( cloth_img_path )
@@ -120,7 +127,7 @@ def responce():
     #------------------------------------------
     # Graphonomy を用いて人物パース画像を生成する。
     #------------------------------------------
-    graphonomy_msg = {'pose_img_base64': json_data["pose_img_base64"] }
+    graphonomy_msg = {'pose_img_base64': pose_img_base64 }
     graphonomy_msg = json.dumps(graphonomy_msg)     # dict を JSON 文字列として整形して出力
     try:
         graphonomy_responce = requests.post( graphonomy_server_url, json=graphonomy_msg )
@@ -151,16 +158,11 @@ def responce():
     # OpenPose を用いて人物姿勢 keypoints を生成する。
     #------------------------------------------
     # request 
-    oepnpose_msg = {'pose_img_base64': json_data["pose_img_base64"] }
+    oepnpose_msg = {'pose_img_base64': pose_img_base64 }
     oepnpose_msg = json.dumps(oepnpose_msg)
     try:
         openpose_responce = requests.post(openpose_server_url, json=oepnpose_msg)
         openpose_responce = openpose_responce.json()
-        """
-        if( app.debug ):
-            print( "openpose_responce : ", openpose_responce )
-        """
-
         with open( poseA_keypoints_path, 'w') as f:
             json.dump( openpose_responce, f, ensure_ascii=False )
         with open( poseB_keypoints_path, 'w') as f:
@@ -279,9 +281,11 @@ if __name__ == "__main__":
     parser.add_argument('--tom_agnostic_type', choices=['agnostic1', 'agnostic2', 'agnostic3'], default="agnostic2", help="TOM agnotic の形状タイプ")
     parser.add_argument('--use_tom_wuton_agnotic', action='store_true', help="WUTON 形式の agnotic 入力を使用するか否か")
     parser.add_argument('--wuton_agnotic_kernel_size', type=int, default=6, help="WUTON 形式の agnotic 入力の膨張カーネルサイズ")
-    parser.add_argument('--reuse_tom_wuton_agnotic', action='store_false', help="WUTON 形式の agnotic 入力を再利用するか否か")
+    parser.add_argument('--reuse_tom_wuton_agnotic', action='store_true', help="WUTON 形式の agnotic 入力を再利用するか否か")
     parser.add_argument('--eval_poseA_or_poseB', choices=['poseA', 'poseB'], default="poseB", help="人物画像の推論対象")
 
+    parser.add_argument('--use_amp', action='store_true', help="AMP [Automatic Mixed Precision] の使用有効化")
+    parser.add_argument('--opt_level', choices=['O0','O1','O2','O3'], default='O1', help='mixed precision calculation mode')
     parser.add_argument("--seed", type=int, default=8, help="乱数シード値")
     parser.add_argument('--debug', action='store_true', help="デバッグモード有効化")
     args = parser.parse_args()
@@ -349,6 +353,24 @@ if __name__ == "__main__":
 
     model_G.eval()
 
+    #-------------------------------
+    # AMP の適用（使用メモリ削減効果）
+    #-------------------------------
+    if( args.use_amp ):
+        # dummy の optimizer
+        optimizer = optim.Adam( params = model_G.parameters(), lr = 0.0001, betas = (0.5,0.999) )
+
+        # amp initialize
+        model_G, optimizer = amp.initialize(
+            model_G, 
+            optimizer, 
+            opt_level = args.opt_level,
+            num_losses = 1
+        )
+
+    #-------------------------------
+    # DataLoader
+    #-------------------------------
     ds_test = VtonDataset( args, args.dataset_dir, "test", args.pair_list_path )
     dloader_test = VtonDataLoader(ds_test, batch_size=args.batch_size, shuffle=False )
 
