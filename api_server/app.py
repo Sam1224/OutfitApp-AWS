@@ -27,6 +27,8 @@ from dataset import VtonDataset, VtonDataLoader
 #======================
 # グローバル変数
 #======================
+args = None
+
 #-----------------
 # flask 関連
 #-----------------
@@ -41,39 +43,17 @@ app.config["JSON_SORT_KEYS"] = False    # ソートをそのまま
 #-----------------
 # OpenPose 関連
 #-----------------
-openpose_server_url = "http://openpose_ubuntu_gpu_container:5010/openpose"
-#openpose_server_url = "http://localhost:5010/openpose"
-#openpose_server_url = "http://0.0.0.0:5010/openpose"
+#openpose_server_url = http://openpose_ubuntu_gpu_container:5010/openpose
 
 #-----------------
 # Graphonomy 関連
 #-----------------
-graphonomy_server_url = "http://graphonomy_server_gpu_container:5001/graphonomy"
-#graphonomy_server_url = "http://0.0.0.0:5001/graphonomy"
+#graphonomy_server_url = http://graphonomy_server_gpu_container:5001/graphonomy
 
 #-----------------
 # 試着モデル関連
 #-----------------
-device = "gpu"
-dataset_dir = "datasets"
-pair_list_path = "datasets/test_pairs.csv"
-load_checkpoints_gmm_path = "checkpoints/improved_cp-vton_train_end2end_zalando_vton_dataset1_256_use_tom_agnotic_200215/GMM/gmm_final.pth"
-load_checkpoints_tom_path = "checkpoints/my-vton_train_end2end_zalando_vton_dataset2_256_200218/TOM/tom_final.pth"
-batch_size = 1
-image_height = 256
-image_width = 192
-grid_size = 5
-
-gmm_agnostic_type = "agnostic1"
-tom_agnostic_type = "agnostic2"
-use_tom_wuton_agnotic = False
-wuton_agnotic_kernel_size = 6
-reuse_tom_wuton_agnotic = True
-eval_poseA_or_poseB = "poseB"
-
-seed = 8
-debug = True
-
+device = None
 model_G = None
 ds_test = None
 dloader_test = None
@@ -103,20 +83,20 @@ def responce():
         json_data = flask.request.get_json()
 
     #
-    poseA_img_path = os.path.join( dataset_dir, "test", "poseA", "1.png" )
-    poseB_img_path = os.path.join( dataset_dir, "test", "poseB", "1.png" )
-    cloth_img_path = os.path.join( dataset_dir, "test", "cloth", "1.png" )
-    cloth_mask_img_path = os.path.join( dataset_dir, "test", "cloth_mask", "1.png" )
-    poseA_keypoints_path = os.path.join( dataset_dir, "test", "poseA_keypoints", "1_keypoints.json" )
-    poseB_keypoints_path = os.path.join( dataset_dir, "test", "poseB_keypoints", "1_keypoints.json" )
+    poseA_img_path = os.path.join( args.dataset_dir, "test", "poseA", "1.png" )
+    poseB_img_path = os.path.join( args.dataset_dir, "test", "poseB", "1.png" )
+    cloth_img_path = os.path.join( args.dataset_dir, "test", "cloth", "1.png" )
+    cloth_mask_img_path = os.path.join( args.dataset_dir, "test", "cloth_mask", "1.png" )
+    poseA_keypoints_path = os.path.join( args.dataset_dir, "test", "poseA_keypoints", "1_keypoints.json" )
+    poseB_keypoints_path = os.path.join( args.dataset_dir, "test", "poseB_keypoints", "1_keypoints.json" )
 
     #------------------------------------------
     # ブラウザから送信された画像データの変換
     #------------------------------------------
     pose_img_pillow = conv_base64_to_pillow( json_data["pose_img_base64"] )
     cloth_img_pillow = conv_base64_to_pillow( json_data["cloth_img_base64"] )
-    pose_img_pillow = pose_img_pillow.resize( (image_width, image_height), resample = Image.LANCZOS )
-    cloth_img_pillow = cloth_img_pillow.resize( (image_width, image_height), resample = Image.LANCZOS )
+    pose_img_pillow = pose_img_pillow.resize( (args.image_width, args.image_height), resample = Image.LANCZOS )
+    cloth_img_pillow = cloth_img_pillow.resize( (args.image_width, args.image_height), resample = Image.LANCZOS )
     pose_img_base64 = conv_pillow_to_base64( pose_img_pillow )
     cloth_img_base64 = conv_pillow_to_base64( cloth_img_pillow )
 
@@ -130,12 +110,14 @@ def responce():
     graphonomy_msg = {'pose_img_base64': pose_img_base64 }
     graphonomy_msg = json.dumps(graphonomy_msg)     # dict を JSON 文字列として整形して出力
     try:
-        graphonomy_responce = requests.post( graphonomy_server_url, json=graphonomy_msg )
+        graphonomy_responce = requests.post( args.graphonomy_server_url, json=graphonomy_msg )
         graphonomy_responce = graphonomy_responce.json()
 
     except Exception as e:
         print( "通信失敗 [Graphonomy]" )
         print( "Exception : ", e )
+        #torch.cuda.empty_cache()
+
         http_status_code = 400
         response = flask.jsonify(
             {
@@ -149,10 +131,10 @@ def responce():
     pose_parse_img_pillow = conv_base64_to_pillow(pose_parse_img_base64)
     pose_parse_img_RGB_pillow = conv_base64_to_pillow(pose_parse_img_RGB_base64)
 
-    pose_parse_img_pillow.save( os.path.join( dataset_dir, "test", "poseA_parsing", "1.png" ) )
-    pose_parse_img_pillow.save( os.path.join( dataset_dir, "test", "poseB_parsing", "1.png" ) )
-    pose_parse_img_RGB_pillow.save( os.path.join( dataset_dir, "test", "poseA_parsing", "1_vis.png" ) )
-    pose_parse_img_RGB_pillow.save( os.path.join( dataset_dir, "test", "poseB_parsing", "1_vis.png" ) )
+    pose_parse_img_pillow.save( os.path.join( args.dataset_dir, "test", "poseA_parsing", "1.png" ) )
+    pose_parse_img_pillow.save( os.path.join( args.dataset_dir, "test", "poseB_parsing", "1.png" ) )
+    pose_parse_img_RGB_pillow.save( os.path.join( args.dataset_dir, "test", "poseA_parsing", "1_vis.png" ) )
+    pose_parse_img_RGB_pillow.save( os.path.join( args.dataset_dir, "test", "poseB_parsing", "1_vis.png" ) )
 
     #------------------------------------------
     # OpenPose を用いて人物姿勢 keypoints を生成する。
@@ -161,7 +143,7 @@ def responce():
     oepnpose_msg = {'pose_img_base64': pose_img_base64 }
     oepnpose_msg = json.dumps(oepnpose_msg)
     try:
-        openpose_responce = requests.post(openpose_server_url, json=oepnpose_msg)
+        openpose_responce = requests.post(args.openpose_server_url, json=oepnpose_msg)
         openpose_responce = openpose_responce.json()
         with open( poseA_keypoints_path, 'w') as f:
             json.dump( openpose_responce, f, ensure_ascii=False )
@@ -171,6 +153,8 @@ def responce():
     except Exception as e:
         print( "通信失敗 [OpenPose]" )
         print( "Exception : ", e )
+        #torch.cuda.empty_cache()
+
         http_status_code = 400
         response = flask.jsonify(
             {
@@ -239,6 +223,7 @@ def responce():
     #------------------------------------------
     # json 形式のレスポンスメッセージを作成
     #------------------------------------------
+    #torch.cuda.empty_cache()
     http_status_code = 200
     response = flask.jsonify(
         {
@@ -266,6 +251,10 @@ if __name__ == "__main__":
 
     parser.add_argument('--openpose_server_url', type=str, default="http://openpose_ubuntu_gpu_container:5010/openpose", help="OpenPose サーバーの URL")
     parser.add_argument('--graphonomy_server_url', type=str, default="http://graphonomy_server_gpu_container:5001/graphonomy", help="Graphonomy サーバーの URL")
+    #parser.add_argument('--openpose_server_container_name', type=str, default="openpose_ubuntu_gpu_container", help="OpenPose サーバーのコンテナ名")
+    #parser.add_argument('--openpose_server_port', type=str, default="5010", help="OpenPose サーバーのポート番号")
+    #parser.add_argument('--graphonomy_server_container_name', type=str, default="graphonomy_server_gpu_container", help="OpenPose サーバーのコンテナ名")
+    #parser.add_argument('--graphonomy_server_port', type=str, default="5001", help="OpenPose サーバーのポート番号")
 
     parser.add_argument('--device', choices=['cpu', 'gpu'], default="gpu", help="使用デバイス (CPU or GPU)")
     parser.add_argument('--dataset_dir', type=str, default="datasets", help="データセットのディレクトリ")
@@ -277,6 +266,8 @@ if __name__ == "__main__":
     parser.add_argument('--image_width', type=int, default=192, help="入力画像の幅（pixel単位）")
     parser.add_argument('--grid_size', type=int, default=5)
 
+    parser.add_argument('--poseA_bodyshape_downsampling_size', type=int, default=4)
+    parser.add_argument('--poseB_bodyshape_downsampling_size', type=int, default=4)
     parser.add_argument('--gmm_agnostic_type', choices=['agnostic1', 'agnostic2', 'agnostic3'], default="agnostic1", help="GMM agnotic の形状タイプ")
     parser.add_argument('--tom_agnostic_type', choices=['agnostic1', 'agnostic2', 'agnostic3'], default="agnostic2", help="TOM agnotic の形状タイプ")
     parser.add_argument('--use_tom_wuton_agnotic', action='store_true', help="WUTON 形式の agnotic 入力を使用するか否か")
@@ -296,26 +287,9 @@ if __name__ == "__main__":
     #------------------------------------
     # グローバル変数の設定
     #------------------------------------
-    openpose_server_url = args.openpose_server_url
-    graphonomy_server_url = args.graphonomy_server_url
-
-    device = args.device
-    dataset_dir = args.dataset_dir
-    pair_list_path = args.pair_list_path
-    load_checkpoints_gmm_path = args.load_checkpoints_gmm_path
-    load_checkpoints_tom_path = args.load_checkpoints_tom_path
-    batch_size = args.batch_size
-    image_height = args.image_height
-    image_width = args.image_width
-    grid_size = args.grid_size
-    gmm_agnostic_type = args.gmm_agnostic_type
-    tom_agnostic_type = args.tom_agnostic_type
-    use_tom_wuton_agnotic = args.use_tom_wuton_agnotic
-    wuton_agnotic_kernel_size = args.wuton_agnotic_kernel_size
-    reuse_tom_wuton_agnotic = args.reuse_tom_wuton_agnotic
-    eval_poseA_or_poseB = args.eval_poseA_or_poseB
-    seed = args.seed
-    debug = args.debug
+    args = args
+    #openpose_server_url = "http://" + args.openpose_server_container_name + ":" + args.openpose_server_port + "/openpose"
+    #graphonomy_server_url = "http://" + args.graphonomy_server_container_name + ":" + args.graphonomy_server_port + "/graphonomy"
 
     #------------------------------------
     # 実行 Device の設定
@@ -341,6 +315,7 @@ if __name__ == "__main__":
     random.seed(args.seed)
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed(args.seed)
+    torch.cuda.manual_seed_all(args.seed)
 
     #------------------------------------
     # 試着モデル

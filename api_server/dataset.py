@@ -82,25 +82,7 @@ class VtonDataset(data.Dataset):
 
         bodyshape_mask_np = (parsing_np > 0).astype(np.float32)
         bodyshape_mask_img = Image.fromarray((bodyshape_mask_np*255).astype(np.uint8))
-
-        if( self.image_height == 256 ):
-            bodyshape_mask_img = bodyshape_mask_img.resize((self.image_width // 4, self.image_height // 4), Image.BILINEAR)
-        elif( self.image_height == 512 ):
-            bodyshape_mask_img = bodyshape_mask_img.resize((self.image_width // 8, self.image_height // 8), Image.BILINEAR)
-        elif( self.image_height == 1024 ):
-            bodyshape_mask_img = bodyshape_mask_img.resize((self.image_width // 16, self.image_height // 16), Image.BILINEAR)
-        else:
-            bodyshape_mask_img = bodyshape_mask_img.resize((self.image_width // 4, self.image_height // 4), Image.BILINEAR)
-        """
-        if( self.image_height == 256 ):
-            bodyshape_mask_img = bodyshape_mask_img.resize((self.image_width // 16, self.image_height // 16), Image.BILINEAR)
-        elif( self.image_height == 512 ):
-            bodyshape_mask_img = bodyshape_mask_img.resize((self.image_width // 32, self.image_height // 32), Image.BILINEAR)
-        elif( self.image_height == 1024 ):
-            bodyshape_mask_img = bodyshape_mask_img.resize((self.image_width // 64, self.image_height // 64), Image.BILINEAR)
-        else:
-            bodyshape_mask_img = bodyshape_mask_img.resize((self.image_width // 16, self.image_height // 16), Image.BILINEAR)
-        """
+        bodyshape_mask_img = bodyshape_mask_img.resize((self.image_width // self.args.bodyshape_downsampling_size, self.image_height // self.args.bodyshape_downsampling_size), Image.BILINEAR)
         bodyshape_mask_img = bodyshape_mask_img.resize((self.image_width, self.image_height), Image.BILINEAR)
         bodyshape_mask_tsr = self.transform_mask_wNorm(bodyshape_mask_img)
         return bodyshape_mask_tsr

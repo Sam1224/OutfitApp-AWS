@@ -3,7 +3,7 @@ Flask を用いた仮想試着モデルの WebAPI サーバー、及びブラウ
 ブラウザアプリ上の GUI で指定した人物画像と服画像に対して、仮想試着サーバーで試着画像を生成します。<br>
 仮想試着サーバーは、現在 GPU 版のみ動作します。（CPU 版は準備中）
 
-<img src="https://user-images.githubusercontent.com/25688193/75881610-c6014780-5e62-11ea-9f98-951a454b8536.png" width=600>
+<img src="https://user-images.githubusercontent.com/25688193/76092117-30042300-6002-11ea-8722-2e06d7360747.png" width=600>
 
 使用可能な仮想試着モデルについては、以下のレポジトリを参照してくだい。
 - [Yagami360/virtual-try-on_exercises_pytorch](https://github.com/Yagami360/virtual-try-on_exercises_pytorch)
