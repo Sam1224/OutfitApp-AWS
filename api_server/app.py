@@ -212,7 +212,7 @@ def responce():
             poseB_tsr, poseB_bodyshape_mask_tsr, poseB_gmm_agnostic_tsr, poseB_tom_agnostic_tsr, poseB_keypoints_tsr, poseB_wuton_agnotic_tsr,
         )
 
-        if( reuse_tom_wuton_agnotic ):
+        if( args.reuse_tom_wuton_agnotic ):
             poseA_gen = (1 - poseA_wuton_agnotic_woErase_mask_tsr) * poseA_gen + poseA_wuton_agnotic_woErase_mask_tsr * poseA_wuton_agnotic_tsr
             poseB_gen = (1 - poseB_wuton_agnotic_woErase_mask_tsr) * poseB_gen + poseB_wuton_agnotic_woErase_mask_tsr * poseB_wuton_agnotic_tsr
 

@@ -74,7 +74,7 @@ class VtonDataset(data.Dataset):
         cloth_mask_tsr = cloth_mask_tsr.view(1, self.image_height, self.image_width)
         return cloth_tsr, cloth_mask_tsr
 
-    def get_body_shape( self, parsing_img ):
+    def get_body_shape( self, parsing_img, downsampling_size = 16 ):
         """
         人物パース画像からダウンサンプリングでぼかした BodyShape のテンソルを取得
         """
@@ -82,7 +82,7 @@ class VtonDataset(data.Dataset):
 
         bodyshape_mask_np = (parsing_np > 0).astype(np.float32)
         bodyshape_mask_img = Image.fromarray((bodyshape_mask_np*255).astype(np.uint8))
-        bodyshape_mask_img = bodyshape_mask_img.resize((self.image_width // self.args.bodyshape_downsampling_size, self.image_height // self.args.bodyshape_downsampling_size), Image.BILINEAR)
+        bodyshape_mask_img = bodyshape_mask_img.resize((self.image_width // downsampling_size, self.image_height // downsampling_size), Image.BILINEAR)
         bodyshape_mask_img = bodyshape_mask_img.resize((self.image_width, self.image_height), Image.BILINEAR)
         bodyshape_mask_tsr = self.transform_mask_wNorm(bodyshape_mask_img)
         return bodyshape_mask_tsr
@@ -281,8 +281,8 @@ class VtonDataset(data.Dataset):
         poseB_cloth_tsr, poseB_cloth_mask_tsr = self.get_cloth_part( poseB_parsing_img, poseB_tsr )
 
         # BodyShape
-        poseA_bodyshape_mask_tsr = self.get_body_shape( poseA_parsing_img )
-        poseB_bodyshape_mask_tsr = self.get_body_shape( poseB_parsing_img )
+        poseA_bodyshape_mask_tsr = self.get_body_shape( poseA_parsing_img, self.args.poseA_bodyshape_downsampling_size )
+        poseB_bodyshape_mask_tsr = self.get_body_shape( poseB_parsing_img, self.args.poseB_bodyshape_downsampling_size )
 
         # GMM agnostic の形状
         poseA_gmm_agnostic_tsr = self.get_agnotic( poseA_parsing_img, poseA_tsr, self.args.gmm_agnostic_type )
