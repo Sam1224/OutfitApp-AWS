@@ -12,19 +12,87 @@
 </head>
 <body>
     <h1>virtual-try-on Web API</h1>
-    <p>仮想試着サーバーの URL を指定</p>
-    <input type="text" class="form-parts" name="api_url" id="api_url" size="40" maxlength="100" value="http://localhost:5000/api_server">
+    <div class="box_server_url">
+        <p>仮想試着サーバーの URL を指定</p>
+        <input type="text" class="form-parts" name="api_url" id="api_url" size="40" maxlength="100" value="http://localhost:5000/api_server">
+    </div>
 
-    <p>人物画像を読み込む（画像サイズ４：３）</p>
-    <input id="selected_file_pose_image" type="file" accept="image/*"></input>
-    <canvas id="selected_file_pose_image_canvas" width="192" height="256"></canvas>
+    <div class="box_pose">
+        <p>人物画像を読み込む（画像サイズ４：３）</p>
+        <div class="box_pose_select">
+            <!-- for属性の値とinputタグのid属性の値を同じにすることで、ブラウザでラベルをクリックした際に、inputタグをクリックしたのと同じ動作が可能になる -->
+            <!-- labelタグにはjsで使うクラス「js-panel-select」を用意しておく-->
+            <label for="pose_select_1" class="pose_panel_select">
+                <!-- ラジオボタンを用意する-->
+                <input type="radio" value="1" id="pose_select_1">
+                <img src="sample_image/pose/000077_0.png" id="pose_image_1">
+            </label>
 
-    <p>服画像を読み込む（画像サイズ４：３）</p>
-    <input id="selected_file_cloth_image" type="file" accept="image/*"></input>
-    <canvas id="selected_file_cloth_image_canvas" width="192" height="256"></canvas>
+            <label for="pose_select_2" class="pose_panel_select">
+                <input type="radio" value="2" id="pose_select_2">
+                <img src="sample_image/pose/000123_0.png" id="pose_image_2">
+            </label>
+            <label for="pose_select_3" class="pose_panel_select">
+                <input type="radio" value="3" id="pose_select_3">
+                <img src="sample_image/pose/000225_0.png" id="pose_image_3">
+            </label>
+            <label for="pose_select_4" class="pose_panel_select">
+                <input type="radio" value="4" id="pose_select_4">
+                <img src="sample_image/pose/000163_0.png" id="pose_image_4">
+            </label>
+            <label for="pose_select_5" class="pose_panel_select">
+                <input type="radio" value="5" id="pose_select_5">
+                <img src="sample_image/pose/000068_0.png" id="pose_image_5">
+            </label>
+        </div>
+        <label for="pose_select_0" class="pose_panel_select">
+            <input type="radio" value="0" id="pose_select_0"></input>
+            <input id="selected_file_pose_image" type="file" accept="image/*"></input>
+            <canvas id="selected_file_pose_image_canvas" width="192" height="256"></canvas>
+        </label>
+    </div>
 
-    <p>仮想試着画像を表示</p>
-    <button type="button" onclick="generateTryOnImage()">試着画像を生成</button>
-    <canvas id="tryon_image_canvas" width="192" height="256"></canvas>
+    <div class="box_cloth">
+        <p>服画像を読み込む（画像サイズ４：３）</p>
+        <div class="box_cloth_select">
+            <label for="cloth_select_1" class="cloth_panel_select">
+                <input type="radio" value="6" id="cloth_select_1">
+                <img src="sample_image/cloth/000011_1.png" id="cloth_image_1">
+            </label>
+    
+            <label for="cloth_select_2" class="cloth_panel_select">
+                <input type="radio" value="7" id="cloth_select_2">
+                <img src="sample_image/cloth/000051_1.png" id="cloth_image_2">
+            </label>
+
+            <label for="cloth_select_3" class="cloth_panel_select">
+                <input type="radio" value="8" id="cloth_select_3">
+                <img src="sample_image/cloth/000145_1.png" id="cloth_image_3">
+            </label>
+
+            <label for="cloth_select_4" class="cloth_panel_select">
+                <input type="radio" value="9" id="cloth_select_4">
+                <img src="sample_image/cloth/000256_1.png" id="cloth_image_4">
+            </label>
+
+            <label for="cloth_select_5" class="cloth_panel_select">
+                <input type="radio" value="10" id="cloth_select_5">
+                <img src="sample_image/cloth/000840_1.png" id="cloth_image_5">
+            </label>
+        </div>
+
+        <label for="cloth_select_0" class="cloth_panel_select">
+            <input type="radio" value="0" id="cloth_select_0"></input>
+            <input id="selected_file_cloth_image" type="file" accept="image/*"></input>
+            <canvas id="selected_file_cloth_image_canvas" width="192" height="256"></canvas>
+        </label>
+    </div>
+    
+
+    <div class="box_tryon">
+        <p>仮想試着画像を表示</p>
+        <button type="button" onclick="generateTryOnImage()">試着画像を生成</button>
+        <canvas id="tryon_image_canvas" width="192" height="256"></canvas>
+    </div>
 </body>
 </html>

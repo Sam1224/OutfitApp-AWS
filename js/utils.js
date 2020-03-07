@@ -13,3 +13,18 @@ function drawToCanvas( img_src, canvas_id ) {
     }
 }
 
+// <img src> で埋め込まれた Image を Bae64 (canvas.toDataURL) に変換する
+// [args]
+//    img       : HTMLImageElement
+//    mime_type : string "image/png", "image/jpeg" など
+function convImageToBase64( img, mime_type ){
+    // New Canvas
+    var canvas = document.createElement('canvas');
+    canvas.width  = img.width;
+    canvas.height = img.height;
+    // Draw Image
+    var context = canvas.getContext('2d');
+    context.drawImage(img, 0, 0, canvas.width, canvas.height);
+    // To Base64
+    return canvas.toDataURL(mime_type);    
+}
