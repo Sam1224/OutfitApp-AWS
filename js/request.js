@@ -198,7 +198,7 @@ function generateTryOnImage() {
         .done(function(data, textStatus, jqXHR) {
             // 通信成功時の処理を記述
             console.log( "試着画像の通信成功" );
-            console.log( data.tryon_img_base64 );
+            //console.log( data.tryon_img_base64 );
             console.log( textStatus );
             console.log( jqXHR );
 
@@ -208,7 +208,7 @@ function generateTryOnImage() {
         .fail(function(jqXHR, textStatus, errorThrown) {
             // 通信失敗時の処理を記述
             console.log( "試着画像の通信失敗" );
-            //console.log( textStatus );
+            console.log( textStatus );
             console.log( jqXHR );
             //console.log( errorThrown );
             alert("仮想試着サーバーとの通信に失敗しました\n" + api_url )

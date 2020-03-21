@@ -139,7 +139,17 @@ class VtonDataset(data.Dataset):
                 keypoints_dat = pose_label['people'][0]['pose_keypoints_2d']
                 #keypoints_dat = pose_label['people'][0]['pose_keypoints']
                 keypoints_dat = np.array(keypoints_dat)
-                keypoints_dat = keypoints_dat.reshape((-1,3))
+                if( self.args.debug ):
+                    print( "keypoints_dat.shape : ", keypoints_dat.shape )  # shape = (54,)
+
+                # OpenPose からの keypoints フォーマット異常時の処理追加
+                if( keypoints_dat.shape[0] >= 3 ):
+                    keypoints_dat = keypoints_dat.reshape((-1,3))
+                    if( self.args.debug ):
+                        print( "keypoints_dat.shape : ", keypoints_dat.shape )  # shape = (18, 3)
+                else:
+                    keypoints_dat = np.zeros( (18, 3) )
+                    print( "[Waring] pose_keypoints_2d format is not correct from OpenPose, set zero tensor (18,3) for avoiding error." )
 
         # ネットワークに concat して入力するための keypoints テンソルと visualation 用のテンソルを作成
         point_num = 18
