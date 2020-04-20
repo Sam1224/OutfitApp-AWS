@@ -31,3 +31,9 @@ mv -i ${FILE_NAME} api_server/checkpoints/my-vton_train_end2end_zalando_vton_dat
 #--------------
 cd api_server/graphonomy_wrapper
 sh download_model.sh
+
+#--------------
+# MMFashion
+#--------------
+cd ../mmfashion
+sh download_dataset_model.sh

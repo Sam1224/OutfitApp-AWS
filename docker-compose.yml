@@ -41,6 +41,27 @@ services:
             LANG: C.UTF-8
         command: bash -c "python3 app.py --host 0.0.0.0 --port 5001 --device gpu --use_amp --debug"
 
+    mmfashion_gpu_server:
+        container_name: mmfashion_gpu_container
+        image: mmfashion_image
+        runtime: nvidia
+        build:
+            context: "api_server/mmfashion"
+            dockerfile: Dockerfile
+        shm_size: '4gb'
+        volumes:
+            - ${PWD}/api_server/mmfashion:/home/ubuntu/share/mmfashion
+            - /etc/group:/etc/group:ro
+            - /etc/passwd:/etc/passwd:ro
+        ports:
+            - "5012:5012"
+        tty: true
+        environment:
+            TZ: "Asia/Tokyo"
+            LC_ALL: C.UTF-8
+            LANG: C.UTF-8
+        command: bash -c "python app.py --host 0.0.0.0 --port 5012"
+
     api_gpu_server:
         container_name: api_server_gpu_container
         image: api_server_image
