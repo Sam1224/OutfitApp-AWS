@@ -20,3 +20,8 @@ api_server/datasets/test/poseB_keypoints/*
 api_server/datasets/test/poseB_parsing/*
 
 docker-compose_cpu.yml
+
+api_server/checkpoints/*
+api_server/graphonomy_wrapper/checkpoints/*.pth
+api_server/mmfashion/data/In-shop/*
+api_server/mmfashion/checkpoint/*
